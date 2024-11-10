@@ -29,6 +29,7 @@
 #include "TGeoMedium.h"
 #include "TGeoTrd1.h"
 #include "TGeoArb8.h"
+#include "TGeoShapeAssembly.h"
 
 #include "TParticle.h"
 #include "TParticlePDG.h"
@@ -103,6 +104,28 @@ Target::~Target()
 void Target::Initialize()
 {
   FairDetector::Initialize();
+}
+
+TString PrepareBooleanOperation(TGeoVolumeAssembly* TargetVolume, TGeoVolume * SensitiveVolume, const int nlayers, const char *sensname, const char* shieldname, Double_t dzshield, Double_t sensdz, Double_t passdz, Double_t dzoffset=0.){
+    //cut shield inserts and place sensitive layers inside
+    TGeoTranslation *cutT;
+    TString BooleanUnionShapes("(");
+    //union of the sensitive layers positions to be inserted
+    for (int ilayer = 0; ilayer < nlayers; ilayer++){
+        TString TranslationName("cutT");
+        TranslationName += TString(shieldname);
+
+        cutT = new TGeoTranslation(TranslationName.Data(),0,0,dzoffset+dzshield/2. - sensdz/2. - ilayer*(sensdz+passdz));
+        cutT->RegisterYourself();
+        BooleanUnionShapes += TString(sensname)+TString(":")+TranslationName;
+        if (ilayer < nlayers-1) BooleanUnionShapes += " + ";
+
+        TargetVolume->AddNode(SensitiveVolume,ilayer,cutT);
+    }
+    BooleanUnionShapes += ")";
+    //cutting the shapes from the muon shield
+    return BooleanUnionShapes;
+    //return (TString(shieldname)+TString(" - ")+BooleanUnionShapes);
 }
 
 // -----   Private method InitMedium
@@ -398,24 +421,11 @@ void Target::ConstructGeometry()
    TGeoVolume *volEmulsionFilm;
 
    TGeoBBox *SensitiveLayer;
-   TGeoVolume *volSNDTargetSensitive;
-
-   if (fDesign<5){
-    EmulsionFilm = new TGeoBBox("EmulsionFilm", EmulsionX/2, EmulsionY/2, EmPlateWidth/2);
-    volEmulsionFilm = new TGeoVolume("Emulsion",EmulsionFilm,Emufilm); //TOP
-    volEmulsionFilm->SetLineColor(kBlue);
-   }
-   else{
-    Double_t SensX = EmulsionX;
-    Double_t SensY = EmulsionY;
-    Double_t SensZ = EmPlateWidth; 
-
-    SensitiveLayer= new TGeoBBox("SNDTargetSensitiveLayer", SensX/2, SensY/2, SensZ/2);
-    volSNDTargetSensitive = new TGeoVolume("volSNDTargetSensitive",SensitiveLayer,Silicon); //TOP
-    volSNDTargetSensitive->SetLineColor(kRed);   
-    AddSensitiveVolume(volSNDTargetSensitive);
-
-   }
+  
+   EmulsionFilm = new TGeoBBox("EmulsionFilm", EmulsionX/2, EmulsionY/2, EmPlateWidth/2);
+   volEmulsionFilm = new TGeoVolume("Emulsion",EmulsionFilm,Emufilm); //TOP
+   volEmulsionFilm->SetLineColor(kBlue);
+   
    if(fPassive==0 && fDesign<5)
     {
       AddSensitiveVolume(volEmulsionFilm);
@@ -423,10 +433,7 @@ void Target::ConstructGeometry()
 
    for(Int_t n=0; n<NPlates+1; n++)
     {
-      if (fDesign < 5)
-       volBrick->AddNode(volEmulsionFilm, n, new TGeoTranslation(0,0,-BrickZ/2+BrickPackageZ/2+ EmPlateWidth/2 + n*AllPlateWidth));
-      else
-       volBrick->AddNode(volSNDTargetSensitive, n, new TGeoTranslation(0,0,-BrickZ/2+BrickPackageZ/2+ EmPlateWidth/2 + n*AllPlateWidth));
+      volBrick->AddNode(volEmulsionFilm, n, new TGeoTranslation(0,0,-BrickZ/2+BrickPackageZ/2+ EmPlateWidth/2 + n*AllPlateWidth));
     }
    }
   else { //more accurate configuration, two emulsion films divided by a plastic base
@@ -563,7 +570,7 @@ void Target::ConstructGeometry()
       TGeoVolume *tTauNuDet = gGeoManager->GetVolume("tTauNuDet");
       cout<< "Tau Nu Detector fMagnetConfig: "<< fDesign<<endl;
 
-      tTauNuDet->AddNode(volTarget,1,new TGeoTranslation(0,0,fCenterZ));
+      if (fDesign != 5) tTauNuDet->AddNode(volTarget,1,new TGeoTranslation(0,0,fCenterZ));
 
       TGeoBBox *Row = new TGeoBBox("row",WallXDim/2, BrickY/2, WallZDim/2);
       TGeoVolume *volRow = new TGeoVolume("Row",Row,air);
@@ -595,6 +602,15 @@ void Target::ConstructGeometry()
 	{
 	  volTarget->AddNode(volWall,l,new TGeoTranslation(0, 0, d_cl_z +BrickZ/2));
 
+    if (fDesign==5){ //TT here for now (need to reactivate TT class!)
+     TGeoBBox *TT = new TGeoBBox("TT", EmulsionX/2, EmulsionY/2, (TTrackerZ)/2);
+     TGeoVolume *volTT = new TGeoVolume("TargetTracker",TT,air); //TOP
+     volTT->SetLineColor(kBlue);
+
+     volTarget->AddNode(volTT,l,new TGeoTranslation(0, 0, d_cl_z +BrickZ+TTrackerZ/2));
+
+    }
+
 	  //6 cm is the distance between 2 columns of consecutive Target for TT placement
 	  d_cl_z += BrickZ + TTrackerZ;
 	}
@@ -616,89 +632,159 @@ void Target::ConstructGeometry()
   }
   if (fDesign == 5){
     TGeoVolume *tTauNuDet = gGeoManager->GetVolume("tTauNuDet");
-    //Target study to be put in the muon shield
-    Double_t fMuShieldZFe = 5.;
-    Double_t fMuShieldZDet = 2.;
-    Int_t fMuShieldNFe = 20;
+    //first, define our volumes
+    //const Double_t XDimension = 40.;
+    //const Double_t YDimension = 40.;
+    //layers to be cut
+    const Double_t SensX = EmulsionX;
+    const Double_t SensY = EmulsionY;
+    const Double_t SensZ = 2.;
 
-    Double_t fXTarget = 40.;
-    Double_t fYTarget = 40.;
-    Double_t fZTarget = fMuShieldNFe * fMuShieldZFe + (fMuShieldNFe-1)* fMuShieldZDet;
-    //defining mother volume
-    TGeoBBox * NuTauMuShieldTarget = new TGeoBBox("NuTauMuShieldTarget",fXTarget/2.,fYTarget/2., fZTarget/2.);
-    TGeoVolume * volNuTauMuShieldTarget = new TGeoVolume("volNuTauMuShieldTarget", NuTauMuShieldTarget, air);
+    const Double_t FeZ = 5.;
 
-    //defining iron blocks and active layers
-    TGeoBBox * NuTauMuShieldPassive = new TGeoBBox("NuTauMuShieldPassive", fXTarget/2.,fYTarget/2.,fMuShieldZFe/2.);
-    TGeoVolume * volNuTauMuShieldPassive = new TGeoVolume("volNuTauMuShieldPassive",NuTauMuShieldPassive, Iron);
-    volNuTauMuShieldPassive->SetLineColor(kGray+1);
+    auto *volMagTargetHCAL = new TGeoVolumeAssembly("volMagTargetHCAL");
+    tTauNuDet->AddNode(volMagTargetHCAL,0,new TGeoTranslation(0,0,-3432.0000)); //please modify the position to retrieve it from, well, somewhere in the program
 
-    TGeoBBox * NuTauMuShieldActive= new TGeoBBox("NuTauMuShieldActive", fXTarget/2.,fYTarget/2.,fMuShieldZDet/2.);
-    TGeoVolume * volNuTauMuShieldActive = new TGeoVolume("volNuTauMuShieldActive",NuTauMuShieldActive, Silicon);
-    volNuTauMuShieldActive->SetLineColor(kRed);
-    AddSensitiveVolume(volNuTauMuShieldActive);
+    auto * SNDSensitiveLayer = new TGeoBBox("SNDSensitiveLayer", SensX/2., SensY/2., SensZ/2.);
+    auto * volSNDSensitiveLayer = new TGeoVolume("volSNDSensitiveLayer",SNDSensitiveLayer, air); //TOP
+    volSNDSensitiveLayer->SetLineColor(kCyan);
 
-    //building volume
-    Double_t dZstep = 0.;
-    volNuTauMuShieldTarget->AddNode(volNuTauMuShieldPassive,0,
-      new TGeoTranslation(0,0,-fZTarget/2.+ dZstep + fMuShieldZFe/2.));
-    dZstep += fMuShieldZFe;
-    //starting loop
-    for (int i = 0; i < (fMuShieldNFe-1); i++){
-      volNuTauMuShieldTarget->AddNode(volNuTauMuShieldActive,i*1e+3,
-        new TGeoTranslation(0,0,-fZTarget/2. + dZstep + fMuShieldZDet/2.));
-      volNuTauMuShieldTarget->AddNode(volNuTauMuShieldPassive,i+1,
-        new TGeoTranslation(0,0,-fZTarget/2. + dZstep + fMuShieldZDet + fMuShieldZFe/2.));
-      dZstep += fMuShieldZFe + fMuShieldZDet;
-    }
-    //redefining thickness to avoid accidents
-    Double_t PassiveThicknessMS = 0.1;
-    Double_t EPlW_MB = 2* EmulsionThickness + PlasticBaseThickness;
-    Double_t AllPlateWidthMS = EPlW_MB + PassiveThicknessMS;
+    //composition of sensitive volumes
+    const Double_t SciFiX = EmulsionX;
+    const Double_t SciFiY = EmulsionY;
+    const Double_t SciFiZ = 0.5;
 
-    //emulsion layers inside
-    TGeoBBox *EmulsionFilmMS = new TGeoBBox("EmulsionFilmMS", EmulsionX/2, EmulsionY/2, EmulsionThickness/2);
-    TGeoVolume *volEmulsionFilmMS = new TGeoVolume("EmulsionMS",EmulsionFilmMS,NEmu); //TOP
-    TGeoVolume *volEmulsionFilm2MS = new TGeoVolume("Emulsion2MS",EmulsionFilmMS,NEmu); //BOTTOM
-    volEmulsionFilmMS->SetLineColor(kBlue);
-    volEmulsionFilm2MS->SetLineColor(kBlue);
+    const Double_t ScintX = EmulsionX;
+    const Double_t ScintY = EmulsionY;
+    const Double_t ScintZ = 1.5;
 
-    if(fPassive==0)
-     {
-       AddSensitiveVolume(volEmulsionFilmMS);
-       AddSensitiveVolume(volEmulsionFilm2MS);
-     }
-    TGeoBBox *PlBaseMS = new TGeoBBox("PlBaseMS", EmulsionX/2, EmulsionY/2, PlasticBaseThickness/2);
-    TGeoVolume *volPlBaseMS = new TGeoVolume("PlasticBaseMS",PlBaseMS,PBase);
-    volPlBaseMS->SetLineColor(kYellow-4);
-    Int_t NPlatesMS = 15;
-    for(Int_t n=0; n<NPlatesMS+1; n++)
+    auto * SNDSciFi = new TGeoBBox("SNDSciFi", SciFiX/2., SciFiY/2., SciFiZ/2.);
+    auto * volSNDSciFi = new TGeoVolume("volSNDSciFi",SNDSciFi, Silicon); //TOP
+    volSNDSciFi->SetLineColor(kGreen);
+
+    auto * SNDScint = new TGeoBBox("SNDScint", ScintX/2., ScintY/2., ScintZ/2.);
+    auto * volSNDScint = new TGeoVolume("volSNDScint",SNDScint, Silicon); //TOP
+    volSNDScint->SetLineColor(kBlue);
+
+    volSNDSensitiveLayer->AddNode(volSNDSciFi,0, new TGeoTranslation(0.,0.,-SensZ/2. + SciFiZ/2.));
+    volSNDSensitiveLayer->AddNode(volSNDScint,0, new TGeoTranslation(0.,0.,-SensZ/2. + SciFiZ + ScintZ/2.));
+
+    //***CUTTING THE MUON SHIELD HERE****//
+    const Double_t dz_6R = 242. *cm *2; //better to define dZ as the full length, as usual
+    const Double_t dz_6L = dz_6R; 
+    //retrieving the muon shield shapes
+    auto Magn6_MiddleMagR = gGeoManager->GetVolume("Magn6_MiddleMagR");
+    TGeoArb8 * arb_6R = (TGeoArb8*) Magn6_MiddleMagR->GetShape();
+
+    auto Magn6_MiddleMagL = gGeoManager->GetVolume("Magn6_MiddleMagL");
+    TGeoArb8 * arb_6L = (TGeoArb8*) Magn6_MiddleMagR->GetShape();
+
+    //computing the translations of the holes
+    const Int_t nlayers_MagTargetHCAL = 50;
+    TString BooleanUnionShapes = PrepareBooleanOperation(volMagTargetHCAL, volSNDSensitiveLayer, nlayers_MagTargetHCAL,  "SNDSensitiveLayer" , arb_6R->GetName(), dz_6R, SensZ, FeZ);
+    //check how long it was in the end
+    TGeoShapeAssembly * MagTargetHCAL = static_cast<TGeoShapeAssembly*> (volMagTargetHCAL->GetShape());
+    MagTargetHCAL->ComputeBBox(); //for an assembly needs to be computed
+    Double_t dZ_MagTargetHCAL = MagTargetHCAL->GetDZ();
+
+    cout<<"Check of boolean operation "<<(TString(arb_6R->GetName())+TString(" - ")+BooleanUnionShapes).Data()<<endl;
+
+    TGeoCompositeShape *cs6R = new TGeoCompositeShape("cs6R",(TString(arb_6R->GetName())+TString(" - ")+BooleanUnionShapes).Data());
+
+    Magn6_MiddleMagR->SetShape(cs6R);
+
+    TGeoCompositeShape *cs6L = new TGeoCompositeShape("cs6L",(TString(arb_6L->GetName())+TString(" - ")+BooleanUnionShapes).Data());
+    Magn6_MiddleMagL->SetShape(cs6L);
+
+    //Target In Magnet 5
+    const Double_t SiX = XDimension;
+    const Double_t SiY = YDimension;
+    const Double_t SiZ = 0.8;
+
+    auto * SNDTargetSiliconLayer = new TGeoBBox("SNDTargetSiliconLayer", SiX/2., SiY/2., SiZ/2.);
+    auto * volSNDTargetSiliconLayer = new TGeoVolume("volSNDTargetSiliconLayer",SNDTargetSiliconLayer,Silicon);
+    volSNDTargetSiliconLayer->SetLineColor(kGreen);
+    //now MagnetHCAL is split between the two magnet sections
+    auto *volMagHCAL_6 = new TGeoVolumeAssembly("volMagHCAL_6");
+    auto *volMagHCAL_5 = new TGeoVolumeAssembly("volMagHCAL_5");
+
+    const Int_t nlayers_MagHCAL = 34;
+    Double_t dz_5L = 2*305. *cm;
+    Double_t dz_5R = dz_5L;
+    //building replicas of inner volumes of magnet 5 from FairShip
+    auto Magn5_MiddleMagR = gGeoManager->GetVolume("Magn5_MiddleMagR");
+    TGeoArb8 * arb_5R = (TGeoArb8*) Magn5_MiddleMagR->GetShape();
+
+    auto Magn5_MiddleMagL = gGeoManager->GetVolume("Magn5_MiddleMagL");
+    TGeoArb8 * arb_5L = (TGeoArb8*) Magn5_MiddleMagR->GetShape();
+
+    //now also in magnet6!
+    const Int_t nlayers_MagHCAL_magnet6 = 24; //in the magnet dowstream
+    BooleanUnionShapes = PrepareBooleanOperation(volMagHCAL_6, volSNDTargetSiliconLayer, nlayers_MagHCAL_magnet6,  "SNDTargetSiliconLayer" , arb_6R->GetName(), dz_6R, SiZ, FeZ, -2*dZ_MagTargetHCAL-FeZ);
+
+    //cutting them and inserting sensitive volumes
+    BooleanUnionShapes = PrepareBooleanOperation(volMagHCAL_5, volSNDTargetSiliconLayer, nlayers_MagHCAL - nlayers_MagHCAL_magnet6, "SNDTargetSiliconLayer" , arb_5R->GetName(), dz_5R, SiZ, FeZ);
+    cout<<"Check of boolean operation magnet5"<<(TString("arb_5R - ")+BooleanUnionShapes).Data()<<endl;
+    TGeoCompositeShape *cs5R = new TGeoCompositeShape("cs5R",(TString(arb_5R->GetName())+TString(" - ")+BooleanUnionShapes).Data());
+
+    TGeoCompositeShape *cs5L = new TGeoCompositeShape("cs5L",(TString(arb_5L->GetName())+TString(" - ")+BooleanUnionShapes).Data());
+
+    tTauNuDet->AddNode(volMagHCAL_5,0,new TGeoTranslation(0,0,-3432.0000 -dz_6L/2.-dz_5R/2.-10.));
+    tTauNuDet->AddNode(volMagHCAL_6,0,new TGeoTranslation(0,0,-3432.0000));
+
+    //*****Silicon Target******//
+
+    const Double_t TungstenX = EmulsionX;
+    const Double_t TungstenY = EmulsionY;
+    const Double_t TungstenZ = 0.7;
+
+    const Int_t nlayers_SiTarget = 58;
+
+    const Double_t SiTargetX = EmulsionX;
+    const Double_t SiTargetY = EmulsionY;
+    const Double_t SiTargetZ = nlayers_SiTarget * (SiZ + TungstenZ);
+
+    auto *SiTargetBox = new TGeoBBox("SiTargetBox",SiTargetX/2.,SiTargetY/2.,SiTargetZ/2.);
+    auto *volSiTarget = new TGeoVolume("volSiTarget",SiTargetBox,air);
+
+    //AddSensitiveVolume(volSNDTargetSiliconLayer) //uncomment when copying in actual class!
+
+    auto * SNDTargetTungstenBlock = new TGeoBBox("SNDTargetTungstenBlock", TungstenX/2., TungstenY/2., TungstenZ/2.);
+    auto * volSNDTargetTungstenBlock = new TGeoVolume("volSNDTargetTungstenBlock",SNDTargetTungstenBlock,tungsten); //TOP
+    volSNDTargetTungstenBlock->SetLineColor(kGray);
+
+    for(Int_t n=0; n<nlayers_SiTarget; n++)
     {
-      volNuTauMuShieldActive->AddNode(volEmulsionFilm2MS, n, new TGeoTranslation(0,0,-fMuShieldZDet/2+ EmulsionThickness/2 + n*AllPlateWidthMS)); //BOTTOM
-      volNuTauMuShieldActive->AddNode(volEmulsionFilmMS, n, new TGeoTranslation(0,0,-fMuShieldZDet/2+3*EmulsionThickness/2+PlasticBaseThickness+n*AllPlateWidthMS)); //TOP
-      volNuTauMuShieldActive->AddNode(volPlBaseMS, n, new TGeoTranslation(0,0,-fMuShieldZDet/2+EmulsionThickness+PlasticBaseThickness/2+n*AllPlateWidthMS)); //PLASTIC BASE
+      volSiTarget->AddNode(volSNDTargetTungstenBlock, n, new TGeoTranslation(0,0, -SiTargetZ/2. + n *(SiZ+TungstenZ) + TungstenZ/2. )); //W
+      volSiTarget->AddNode(volSNDTargetSiliconLayer, n*1000, new TGeoTranslation(0,0,-SiTargetZ/2. + n *(SiZ+TungstenZ) + TungstenZ + SiZ/2 )); //Silicon
     }
 
-    TGeoBBox * TungstenMS = new TGeoBBox("WMS", EmulsionX/2, EmulsionY/2, PassiveThicknessMS/2);
-    TGeoVolume *volTungstenMS = new TGeoVolume("TungstenMS",TungstenMS,tungsten);
-    volTungstenMS->SetLineColor(kGray+3);
+    //cutting the holes in the magnet for the big targets
+    const Double_t dZ_MagHCAL_5 = 0.; //for now
+    const Double_t SiTarget_MagHCAL_Gap = 10.; //gap with Silicon Target upstream
+    const Double_t EmTarget_SiTarget_Gap = 10.; //gap with Emulsion Target upstream
 
-    for(Int_t n=0; n<NPlatesMS; n++)
-    {
-      //decide to use lead or tungsten, according to fDesign
-      volNuTauMuShieldActive->AddNode(volTungstenMS, n, new TGeoTranslation(0,0,-fMuShieldZDet/2+ EPlW_MB + PassiveThicknessMS/2 + n*AllPlateWidthMS));
-    }
+    TGeoTranslation * T_SiTarget = new TGeoTranslation("T_SiTarget",0,0,+dz_5R/2.-dZ_MagHCAL_5-SiTarget_MagHCAL_Gap-SiTargetZ/2.); 
+    T_SiTarget->RegisterYourself();
 
-    //for now putting in an empty space for check
-    //tTauNuDet->AddNode(volNuTauMuShieldTarget,0,new TGeoTranslation(0.,0.,fZcenter + fZtot/2. + 100.));
-    //tTauNuDet->AddNode(volNuTauMuShieldTarget,0,new TGeoTranslation(0.,0.,-3239.));
-    //tTauNuDet->AddNode(volNuTauMuShieldTarget,1,new TGeoTranslation(0.,0.,-3632.624));
-    //tTauNuDet->AddNode(volNuTauMuShieldTarget,2,new TGeoTranslation(0.,0.,-3933.01));
+    TGeoTranslation * T_EmTarget = new TGeoTranslation("T_EmTarget",0,0,+dz_5R/2.-dZ_MagHCAL_5-SiTarget_MagHCAL_Gap-SiTargetZ-EmTarget_SiTarget_Gap-ZDimension/2.); 
+    T_EmTarget->RegisterYourself();
 
-    //no SC, all Warm
-    tTauNuDet->AddNode(volNuTauMuShieldTarget,0,new TGeoTranslation(0.,0.,-3239.));
-    tTauNuDet->AddNode(volNuTauMuShieldTarget,1,new TGeoTranslation(0.,0.,-3753.));
-    tTauNuDet->AddNode(volNuTauMuShieldTarget,2,new TGeoTranslation(0.,0.,-4372.));
+    TGeoCompositeShape *cs5L_si = new TGeoCompositeShape("cs5L_si","cs5L-SiTargetBox:T_SiTarget");
+    TGeoCompositeShape *cs5L_siem = new TGeoCompositeShape("cs5L_siem","cs5L_si-TargetBox:T_EmTarget");
+
+    Magn5_MiddleMagL->SetShape(cs5L_siem);
+    Magn5_MiddleMagL->SetTransparency(1);
+
+    TGeoCompositeShape *cs5R_si = new TGeoCompositeShape("cs5R_si","cs5R-SiTargetBox:T_SiTarget");
+    TGeoCompositeShape *cs5R_siem = new TGeoCompositeShape("cs5R_siem","cs5R_si-TargetBox:T_EmTarget");
+    Magn5_MiddleMagR->SetShape(cs5R_siem);
+    Magn5_MiddleMagR->SetTransparency(1);
+
+    tTauNuDet->AddNode(volSiTarget,0,new TGeoTranslation(0,0,-3432.0000-dz_6L/2.-dz_5R/2.-10.+dz_5R/2.-dZ_MagHCAL_5-SiTarget_MagHCAL_Gap-SiTargetZ/2.));
+    tTauNuDet->AddNode(volTarget,0,new TGeoTranslation(0,0,
+                                  -3432.0000-dz_6L/2.-dz_5R/2.-10.+dz_5R/2.-dZ_MagHCAL_5-SiTarget_MagHCAL_Gap-SiTargetZ-EmTarget_SiTarget_Gap-ZDimension/2.));
+
   }
 }//end construct geometry
 
@@ -741,10 +827,6 @@ Bool_t  Target::ProcessHits(FairVolume* vol)
     const char *name;
 
     name = gMC->CurrentVolName();
-    if (strcmp(name,"volSNDTargetSensitive")==0){ //not bricks with emulsion films, but simple sensitive volumes
-      NPlate = detID;
-    }
-    else{
     //cout << name << endl;
 
     if(strcmp(name, "Emulsion") == 0)
@@ -801,7 +883,6 @@ Bool_t  Target::ProcessHits(FairVolume* vol)
 
 
     fVolumeID = detID;
-    } //end else
     if (fELoss == 0. ) { return kFALSE; }
     TParticle* p=gMC->GetStack()->GetCurrentTrack();
     //Int_t MotherID =gMC->GetStack()->GetCurrentParentTrackNumber();

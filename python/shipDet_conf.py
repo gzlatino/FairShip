@@ -649,7 +649,8 @@ def configure(run, ship_geo):
              detectorList.append(NuTauTT)
 
             detectorList.append(NuTauTarget)
-
+            if ship_geo.nuTauTargetDesign==5:
+             NuTauTarget.SetTTzdimension(ship_geo.NuTauTT.TTZ)
             # High Precision Tracker
             if ship_geo.nuTauTargetDesign < 4:
                 tauHpt = ROOT.Hpt(

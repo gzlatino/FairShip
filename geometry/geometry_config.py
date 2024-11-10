@@ -766,8 +766,8 @@ with ConfigRegistry.register_config("basic") as c:
     if c.NuTauTarget.Design == 5: #ECN3 geometry from AdvSND (100 active detectors and tungsten slabs)
         c.NuTauTarget.row = 1
         c.NuTauTarget.col = 1
-        c.NuTauTarget.wall = 1
-        c.NuTauTarget.n_plates = 100
+        c.NuTauTarget.wall = 5
+        c.NuTauTarget.n_plates = 36
         c.NuTauTarget.EmX = 40. * u.cm
         c.NuTauTarget.EmY = 40. * u.cm
         c.NuTauTarget.BrPackX = 0
@@ -776,10 +776,10 @@ with ConfigRegistry.register_config("basic") as c:
         c.NuTauTarget.BrX = c.NuTauTarget.BrPackX + c.NuTauTarget.EmX
         c.NuTauTarget.BrY = c.NuTauTarget.BrPackY + c.NuTauTarget.EmY
         
-        c.NuTauTarget.LeadTh = 7 * u.mm
+        c.NuTauTarget.LeadTh = 0.1 * u.mm
         
-        #c.NuTauTarget.EPlW = 2* c.NuTauTarget.EmTh + c.NuTauTarget.PBTh
-        c.NuTauTarget.EPlW = 8 * u.mm
+        c.NuTauTarget.EPlW = 2* c.NuTauTarget.EmTh + c.NuTauTarget.PBTh
+        #c.NuTauTarget.EPlW = 8 * u.mm
         c.NuTauTarget.AllPW = c.NuTauTarget.LeadTh + c.NuTauTarget.EPlW
         
         c.NuTauTarget.BrZ = c.NuTauTarget.n_plates * c.NuTauTarget.AllPW + c.NuTauTarget.EPlW + c.NuTauTarget.BrPackZ
@@ -824,6 +824,13 @@ with ConfigRegistry.register_config("basic") as c:
         # should be called after TTX, TTY
         c.NuTauTarget.xdim = c.NuTauTT.TTX
         c.NuTauTarget.ydim = c.NuTauTT.TTY
+    if (c.NuTauTT.design==5):
+        c.NuTauTT.TTX = c.NuTauTarget.EmX
+        c.NuTauTT.TTY = c.NuTauTarget.EmY
+        c.NuTauTT.TTZ = 2 * u.cm
+        
+        c.NuTauTarget.xdim = c.NuTauTarget.EmX
+        c.NuTauTarget.ydim = c.NuTauTarget.EmY
 
 
  #HPT
@@ -881,7 +888,8 @@ with ConfigRegistry.register_config("basic") as c:
         c.NuTauTarget.zC = c.tauMudet.zMudetC - c.tauMudet.Ztot/2 - c.EmuMagnet.GapDown - c.NuTauTarget.zdim/2.
     if nuTauTargetDesign==5:
         c.tauMudet.GapDown = 0 * u.cm
-        c.NuTauTarget.zC = c.tauMudet.zMudetC - c.tauMudet.Ztot/2 - c.tauMudet.GapDown - c.NuTauTarget.zdim/2.
+        c.NuTauTarget.zC = -3989. #hard coded for quick test, to be changed
+        #c.NuTauTarget.zC = c.tauMudet.zMudetC - c.tauMudet.Ztot/2 - c.tauMudet.GapDown - c.NuTauTarget.zdim/2.
 
     c.NuTauTarget.BaseX =  c.NuTauTarget.xdim + 20*u.cm
     c.NuTauTarget.BaseY = 20*u.cm     
