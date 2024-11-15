@@ -270,6 +270,7 @@ rtdb = run.GetRuntimeDb()
 import shipDet_conf
 
 modules = shipDet_conf.configure(run,ship_geo)
+print("Main Target central z: ", ship_geo.target.z0)
 # -----Create PrimaryGenerator--------------------------------------
 primGen = ROOT.FairPrimaryGenerator()
 if simEngine == "Pythia8":
