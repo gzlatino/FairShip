@@ -1,5 +1,4 @@
 var searchData=
 [
-  ['logger_2ehxx_4939',['logger.hxx',['../logger_8hxx.html',1,'']]],
-  ['logger_2epy_4940',['logger.py',['../logger_8py.html',1,'']]]
+  ['inspectgeant4geo_2epy_0',['inspectGeant4Geo.py',['../inspectGeant4Geo_8py.html',1,'']]]
 ];

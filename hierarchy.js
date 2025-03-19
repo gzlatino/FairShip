@@ -59,7 +59,6 @@ var hierarchy =
       [ "ShipFieldCreator", "classShipFieldCreator.html", null ]
     ] ],
     [ "FairGenerator", null, [
-      [ "ALPACAGenerator", "classALPACAGenerator.html", null ],
       [ "CosmicsGenerator", "classCosmicsGenerator.html", null ],
       [ "DPPythia8Generator", "classDPPythia8Generator.html", null ],
       [ "EvtCalcGenerator", "classEvtCalcGenerator.html", null ],
@@ -170,9 +169,7 @@ var hierarchy =
     [ "metaclass", null, [
       [ "ShipGeoConfig.ConfigRegistry", "classShipGeoConfig_1_1ConfigRegistry.html", null ]
     ] ],
-    [ "object", null, [
-      [ "method_logger.MethodLogger", "classmethod__logger_1_1MethodLogger.html", null ]
-    ] ],
+    [ "method_logger.MethodLogger", "classmethod__logger_1_1MethodLogger.html", null ],
     [ "pickle.Pickler", null, [
       [ "rootpyPickler.Pickler", "classrootpyPickler_1_1Pickler.html", null ]
     ] ],
@@ -190,6 +187,7 @@ var hierarchy =
     [ "rpvsusy.RPVSUSYbranchings", "classrpvsusy_1_1RPVSUSYbranchings.html", [
       [ "rpvsusy.RPVSUSY", "classrpvsusy_1_1RPVSUSY.html", null ]
     ] ],
+    [ "experimental.analysis_toolkit.selection_check", "classexperimental_1_1analysis__toolkit_1_1selection__check.html", null ],
     [ "shipDigiReco.ShipDigiReco", "classshipDigiReco_1_1ShipDigiReco.html", null ],
     [ "ShipGeo.ShipGeo", "classShipGeo_1_1ShipGeo.html", null ],
     [ "shipPid.Task", "classshipPid_1_1Task.html", null ],

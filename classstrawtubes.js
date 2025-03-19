@@ -1,6 +1,7 @@
 var classstrawtubes =
 [
     [ "strawtubes", "classstrawtubes.html#ad43527fbd6a42b9b35113435219caf0f", null ],
+    [ "strawtubes", "classstrawtubes.html#a23ed2c046613502278cc4c2a2441582a", null ],
     [ "strawtubes", "classstrawtubes.html#a62363a63aad6039db2047531cf8ae0cf", null ],
     [ "~strawtubes", "classstrawtubes.html#a95bf72066a6a6a1a5b56383cb944e085", null ],
     [ "strawtubes", "classstrawtubes.html#adc322b479fbab808aa945bb47b484d69", null ],
@@ -15,7 +16,7 @@ var classstrawtubes =
     [ "GetCollection", "classstrawtubes.html#a714c3516adba936fa3e1cabce735bce7", null ],
     [ "Initialize", "classstrawtubes.html#a570ab41a26196a080bb5c10ce47b4462", null ],
     [ "InitMedium", "classstrawtubes.html#a7d7144f63ba9faaed99fc942690e0c27", null ],
-    [ "operator=", "classstrawtubes.html#a3a7f832fa954e09bc61b4c77b68c696b", null ],
+    [ "operator=", "classstrawtubes.html#a77a3799cb3cffd3d0d2c03d56190319c", null ],
     [ "PostTrack", "classstrawtubes.html#a99116a12b5e2df73e7e05bea1dadc6e3", null ],
     [ "PreTrack", "classstrawtubes.html#aafc2fe3022ca5ada943bcbb9b1f0eef8", null ],
     [ "ProcessHits", "classstrawtubes.html#ae1e11177c147f8affe898f70a0e8a344", null ],
@@ -59,6 +60,7 @@ var classstrawtubes =
     [ "fFrame_material", "classstrawtubes.html#a5e83d76bcf2f613a79643de4f9bf5c61", null ],
     [ "fInner_Straw_diameter", "classstrawtubes.html#a357d0caf3e30a7df830257886394f526", null ],
     [ "fLength", "classstrawtubes.html#ad7adca1ae65f08d628ce69d7171fbc09", null ],
+    [ "fMedium", "classstrawtubes.html#a137d9d8240e1c4841e92d2182b10ff91", null ],
     [ "fMom", "classstrawtubes.html#a16b22a4db78d4a63384a5da34b461733", null ],
     [ "fOffset_layer12", "classstrawtubes.html#a6cd3daeb71f1667a8cbf2cba70bf54ae", null ],
     [ "fOffset_plane12", "classstrawtubes.html#aa9379abd54d448a1f87739eff01a6d2f", null ],
